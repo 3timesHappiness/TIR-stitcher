@@ -1,0 +1,72 @@
+# tir-stitcher Configuration
+# ============================
+# Copy this file, edit values, and run:
+#   python -m tir_stitcher --config config.yaml
+#
+# All paths support environment variables (e.g., $HOME, %USERPROFILE%).
+
+# --- Workspace (REQUIRED) ---
+workspace_dir: "D:/UAV"
+
+# --- Project Discovery ---
+discovery:
+  # A folder is accepted if its basename contains ALL of these strings
+  # (case-insensitive by default).
+  folder_filters:
+    - "DJI"
+    - "TIR"
+  case_sensitive: false
+  max_depth: 2
+  require_images: true              # Only match folders with T.JPG files
+
+# --- DJI Thermal SDK ---
+tsdk:
+  exe_path: null                    # Auto-detect from workspace if null
+  distance: 5.0                     # Distance to target (meters)
+  humidity: 50.0                    # Relative humidity (%)
+  emissivity: 0.95                  # Surface emissivity (0.0-1.0)
+  ambient: 25.0                     # Ambient temperature (Celsius)
+  reflection: 25.0                  # Reflected temperature (Celsius)
+  measurefmt: 0                     # 0 = uint16 output
+
+# --- RAW to TIF Conversion ---
+raw_to_tif:
+  rows: null                        # Auto-detect from file size if null
+  cols: null                        # Auto-detect from file size if null
+  channels: 1                       # Single-band thermal
+
+# --- EXIF Copy ---
+copy_exif:
+  exiftool_path: null               # Auto-detect from workspace/PATH if null
+  batch_size: 5000                  # Pairs per exiftool invocation
+  verify_gps: true                  # Sample-check GPS was written
+
+# --- Image Preparation ---
+prepare_images:
+  mode: "copy"                      # copy | symlink | hardlink
+
+# --- ODM Processing ---
+odm:
+  docker_image: "opendronemap/odm"  # CPU image (use opendronemap/odm:gpu for GPU)
+  use_gpu: false                    # Set to true for --gpus all
+  feature_quality: "ultra"          # ultra | high | medium | low
+  pc_quality: "ultra"               # ultra | high | medium | low
+  orthophoto_resolution: 5.0        # cm/pixel
+  dem_resolution: 5.0               # cm/pixel
+  min_num_features: 10000           # Minimum features for SfM
+  max_concurrency: 32               # Max threads in ODM
+  extra_args: []                    # Additional ODM arguments
+
+# --- Postprocessing ---
+postprocess:
+  output_dir: null                  # null = write to each project folder
+  output_crs: "EPSG:4326"           # Output coordinate reference system
+  compression: "LZW"                # GeoTIFF compression
+
+# --- Pipeline Behavior ---
+pipeline:
+  stop_on_stage_failure: false      # true = abort project on first stage failure
+  resume: true                      # true = skip completed stages
+  dry_run: false                    # true = log only, no execution
+  log_dir: null                     # null = <workspace_dir>/logs
+  verbose: false                    # true = debug output

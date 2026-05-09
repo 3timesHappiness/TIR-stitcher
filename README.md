@@ -48,7 +48,7 @@ T.JPG ──[DJI Thermal SDK]──> RAW ──[numpy+cv2]──> TIF
 | Tool | Purpose | Install |
 |------|---------|---------|
 | **Python 3.10+** | Runtime | [python.org](https://www.python.org/) |
-| **DJI Thermal SDK** | RAW extraction from T.JPG | Included in DJI SDK package (`dji_irp.exe`) |
+| **DJI Thermal SDK** | RAW extraction from T.JPG | [DJI Download Center](https://www.dji.com/global/downloads/softwares/dji-thermal-sdk) |
 | **ExifTool** | GPS EXIF transfer | [exiftool.org](https://exiftool.org/) |
 | **Docker** | ODM orthophoto generation | [docker.com](https://www.docker.com/) |
 
@@ -121,7 +121,16 @@ See `config.yaml` for all options with comments. Key settings:
 
 ---
 
-## ODM Parameters for TIR
+## ODM (OpenDroneMap)
+
+The pipeline uses [OpenDroneMap](https://www.opendronemap.org/) for Structure-from-Motion (SfM) and orthomosaic generation. ODM runs inside a Docker container, so no manual installation is needed beyond Docker itself.
+
+- **Website**: [opendronemap.org](https://www.opendronemap.org/)
+- **Documentation**: [docs.opendronemap.org](https://docs.opendronemap.org/)
+- **GitHub**: [OpenDroneMap/ODM](https://github.com/OpenDroneMap/ODM)
+- **Docker Hub**: [opendronemap/odm](https://hub.docker.com/r/opendronemap/odm)
+
+### ODM Parameters for TIR
 
 The pipeline uses these fixed ODM arguments optimized for thermal infrared:
 

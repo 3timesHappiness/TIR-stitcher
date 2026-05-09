@@ -139,11 +139,35 @@ Open `_TIR.tif` in QGIS to view the completed temperature map.
 | Tool | Purpose | Download |
 |------|---------|----------|
 | **Python 3.10+** | Runtime | [python.org](https://www.python.org/) |
-| **DJI Thermal SDK** | Extract temperature from T.JPG | `dji_irp.exe` from DJI SDK package(https://www.dji.com/global/downloads/softwares/dji-thermal-sdk?backup_page=index&target=or) |
+| **DJI Thermal SDK** | Extract temperature from T.JPG | [DJI Download Center](https://www.dji.com/global/downloads/softwares/dji-thermal-sdk) |
 | **ExifTool** | Write GPS coordinates | [exiftool.org](https://exiftool.org/) |
 | **Docker** | Image stitching (Stage ⑤) | [docker.com](https://www.docker.com/) |
 
 Don't have Docker yet? Stages 1-4 still work. Once Docker is installed, the pipeline skips completed stages automatically.
+
+---
+
+## What is ODM?
+
+[OpenDroneMap](https://www.opendronemap.org/) (ODM) is the open-source photogrammetry engine used in Stage ⑤. It runs inside Docker and automatically turns hundreds of GPS-tagged images into a single orthophoto by:
+- Detecting feature points and matching overlapping photos
+- Reconstructing 3D scene geometry (Structure from Motion)
+- Projecting everything into a seamless top-down map
+
+**Links:**
+- Website: [opendronemap.org](https://www.opendronemap.org/)
+- Docs: [docs.opendronemap.org](https://docs.opendronemap.org/)
+- GitHub: [OpenDroneMap/ODM](https://github.com/OpenDroneMap/ODM)
+- Docker Hub: [opendronemap/odm](https://hub.docker.com/r/opendronemap/odm)
+
+**Key ODM parameters (pre-configured, no manual changes needed):**
+
+```
+--radiometric-calibration none   # Preserve raw temperature values
+--primary-band 1                 # Process only the thermal band
+--feature-type sift              # SIFT works best on thermal textures
+--orthophoto-png                 # Lossless PNG output
+```
 
 ---
 

@@ -139,7 +139,7 @@ Open `_TIR.tif` in QGIS to view the completed temperature map.
 | Tool | Purpose | Download |
 |------|---------|----------|
 | **Python 3.10+** | Runtime | [python.org](https://www.python.org/) |
-| **DJI Thermal SDK** | Extract temperature from T.JPG | `dji_irp.exe` from DJI SDK package |
+| **DJI Thermal SDK** | Extract temperature from T.JPG | `dji_irp.exe` from DJI SDK package(https://www.dji.com/global/downloads/softwares/dji-thermal-sdk?backup_page=index&target=or) |
 | **ExifTool** | Write GPS coordinates | [exiftool.org](https://exiftool.org/) |
 | **Docker** | Image stitching (Stage ⑤) | [docker.com](https://www.docker.com/) |
 

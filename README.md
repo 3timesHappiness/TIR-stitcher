@@ -1,4 +1,4 @@
-# tir-stitcher
+# TIR-stitcher
 
 **DJI Thermal Infrared Orthophoto Stitching Pipeline**
 大疆无人机热红外正射影像拼接流水线

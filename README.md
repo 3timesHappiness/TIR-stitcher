@@ -9,135 +9,6 @@
 将 DJI 无人机热红外照片（T.JPG）自动拼接为带地理坐标的单波段温度正射影像。
 
 > **零基础可用：** 改好配置 → 一行命令 → 得到拼接结果。
-
-## 快速上手（20 分钟）
-
-### 1. 准备数据
-
-把 DJI 热红外项目文件夹放到 workspace 目录下，每个项目文件夹根目录直接包含 `*_T.JPG` 文件：
-
-```
-workspace/                           ← 设为 workspace_dir，需要在yaml中写入工作路径
-├── DJI_20250524_003_TIR43m/         ← 一个项目文件夹
-│   ├── DJI_20250524132107_0001_T.JPG  ← T.JPG 在项目根目录
-│   ├── DJI_20250524132108_0002_T.JPG
-│   └── ...
-├── DJI_20250525_004_TIR43m/         ← 另一个项目文件夹
-│   ├── DJI_20250525135620_0001_T.JPG
-│   └── ...
-└── config.yaml                      ← 配置文件（放在任意位置，通过 -c 指定）
-```
-
-> **关键：** T.JPG 必须直接放在项目文件夹的根目录下，不能放在子文件夹里。在流程中会自动扫描项目根目录下的 `*_T.JPG` 文件。
-
-`config.yaml` 不需要放在 workspace 里，放在任意位置，运行时用 `-c` 指定路径即可。
-
-### 2. 修改配置
-
-用文本编辑器打开 `config.yaml`：
-
-```yaml
-# 必改项：
-workspace_dir: "你的workspace路径"
-
-# 按需改：
-tsdk:
-  distance: 5.0          # 飞行高度 (米)
-  emissivity: 0.95       # 地表发射率
-
-odm:
-  # Windows Git Bash 用户如果提示 docker 找不到，设这个：
-  docker_path: "C:/Program Files/Docker/Docker/resources/bin"
-```
-
-### 3. 激活虚拟环境（推荐）
-
-建议使用虚拟环境避免依赖冲突。
-
-**conda 环境：**
-```bash
-conda create -n tir python=3.11
-conda activate tir
-pip install -r requirements.txt
-
-# 后续运行时：
-conda run -n tir python -m tir_stitcher -c config.yaml
-```
-
-**Python venv：**
-```bash
-python -m venv venv
-source venv/bin/activate    # Linux/Mac
-venv\Scripts\activate       # Windows CMD
-pip install -r requirements.txt
-
-# 后续运行时（先激活环境）：
-python -m tir_stitcher -c config.yaml
-```
-
-### 4. 假装跑一遍（检查环境）
-
-```bash
-# conda 环境用这种方式：
-conda run -n tir python -m tir_stitcher -c config.yaml --dry-run
-
-# 普通 venv 或全局环境：
-python -m tir_stitcher -c config.yaml --dry-run
-```
-
-不真实执行，只打印会做什么。确认：
-- 找到了几个项目？
-- 有没有工具缺失提示？
-
-### 5. 正式运行
-
-```bash
-# conda 环境：
-conda run -n tir python -m tir_stitcher -c config.yaml
-
-# 普通环境：
-python -m tir_stitcher -c config.yaml
-```
-
-终端会实时显示处理进度和预计剩余时间：
-
-```
-[1/6] extract_raw: 项目名
-       Extract RAW temperature data from T.JPG via DJI Thermal SDK
-  [45/100] 45% | 12s elapsed | ~15s remaining
-```
-
-`-v` 仅在调试时使用，会把所有详细日志也输出到终端。
-
-或者用 `--project` / `-p` 直接指定单个项目（跳过自动发现）：
-
-```bash
-# conda 环境：
-conda run -n tir python -m tir_stitcher -c config.yaml -p "你的项目路径"
-
-# 普通环境：
-python -m tir_stitcher -c config.yaml -p "你的项目路径"
-```
-
-### 6. 查看结果
-
-运行结束后，项目文件夹里会多出：
-
-```
-你的项目/
-├── RAW/                          ← 阶段① 产物
-├── TIF/                          ← 阶段②③ 产物 (带 GPS 的 TIF)
-├── images/                       ← 阶段④ 产物
-├── orthophoto/
-│   ├── odm_orthophoto.tif        ← 阶段⑤ 产物 (拼接大图)
-│   └── odm_orthophoto.png        ← 预览图
-└── 项目名_TIR.tif                ← 阶段⑥ 最终输出 (单波段温度 GeoTIFF)
-```
-
-用 **QGIS** 打开 `_TIR.tif` 即可查看拼接好的温度地图。
-
----
-
 ## 你的数据是什么？
 
 DJI 无人机（Mavic 3T 等）拍摄的 `T.JPG` ：
@@ -333,7 +204,132 @@ python -m tir_stitcher -c config.yaml --dry-run
 | `Need at least 3 images` | ODM 至少需要 3 张重叠照片才能拼接 |
 | RAW 尺寸不对 | 手动设置 `raw_to_tif.rows` 和 `cols`（DJI M3T: 512x640）|
 | 拼接失败 / 黑屏 | 降低 `odm.min_num_features` 到 2000-3000 |
-| 所有 TIF GPS 坐标相同 | v1.0 已知 bug，v2 已修复（逐对复制，不再批量） |
+## 快速上手（20 分钟）
+
+### 1. 准备数据
+
+把 DJI 热红外项目文件夹放到 workspace 目录下，每个项目文件夹根目录直接包含 `*_T.JPG` 文件：
+
+```
+workspace/                           ← 设为 workspace_dir，需要在yaml中写入工作路径
+├── DJI_20250524_003_TIR43m/         ← 一个项目文件夹
+│   ├── DJI_20250524132107_0001_T.JPG  ← T.JPG 在项目根目录
+│   ├── DJI_20250524132108_0002_T.JPG
+│   └── ...
+├── DJI_20250525_004_TIR43m/         ← 另一个项目文件夹
+│   ├── DJI_20250525135620_0001_T.JPG
+│   └── ...
+└── config.yaml                      ← 配置文件（放在任意位置，通过 -c 指定）
+```
+
+> **关键：** T.JPG 必须直接放在项目文件夹的根目录下，不能放在子文件夹里。在流程中会自动扫描项目根目录下的 `*_T.JPG` 文件。
+
+`config.yaml` 不需要放在 workspace 里，放在任意位置，运行时用 `-c` 指定路径即可。
+
+### 2. 修改配置
+
+用文本编辑器打开 `config.yaml`：
+
+```yaml
+# 必改项：
+workspace_dir: "你的workspace路径"
+
+# 按需改：
+tsdk:
+  distance: 5.0          # 飞行高度 (米)
+  emissivity: 0.95       # 地表发射率
+
+odm:
+  # Windows Git Bash 用户如果提示 docker 找不到，设这个：
+  docker_path: "C:/Program Files/Docker/Docker/resources/bin"
+```
+
+### 3. 激活虚拟环境（推荐）
+
+建议使用虚拟环境避免依赖冲突。
+
+**conda 环境：**
+```bash
+conda create -n tir python=3.11
+conda activate tir
+pip install -r requirements.txt
+
+# 后续运行时：
+conda run -n tir python -m tir_stitcher -c config.yaml
+```
+
+**Python venv：**
+```bash
+python -m venv venv
+source venv/bin/activate    # Linux/Mac
+venv\Scripts\activate       # Windows CMD
+pip install -r requirements.txt
+
+# 后续运行时（先激活环境）：
+python -m tir_stitcher -c config.yaml
+```
+
+### 4. 假装跑一遍（检查环境）
+
+```bash
+# conda 环境用这种方式：
+conda run -n tir python -m tir_stitcher -c config.yaml --dry-run
+
+# 普通 venv 或全局环境：
+python -m tir_stitcher -c config.yaml --dry-run
+```
+
+不真实执行，只打印会做什么。确认：
+- 找到了几个项目？
+- 有没有工具缺失提示？
+
+### 5. 正式运行
+
+```bash
+# conda 环境：
+conda run -n tir python -m tir_stitcher -c config.yaml
+
+# 普通环境：
+python -m tir_stitcher -c config.yaml
+```
+
+终端会实时显示处理进度和预计剩余时间：
+
+```
+[1/6] extract_raw: 项目名
+       Extract RAW temperature data from T.JPG via DJI Thermal SDK
+  [45/100] 45% | 12s elapsed | ~15s remaining
+```
+
+`-v` 仅在调试时使用，会把所有详细日志也输出到终端。
+
+或者用 `--project` / `-p` 直接指定单个项目（跳过自动发现）：
+
+```bash
+# conda 环境：
+conda run -n tir python -m tir_stitcher -c config.yaml -p "你的项目路径"
+
+# 普通环境：
+python -m tir_stitcher -c config.yaml -p "你的项目路径"
+```
+
+### 6. 查看结果
+
+运行结束后，项目文件夹里会多出：
+
+```
+你的项目/
+├── RAW/                          ← 阶段① 产物
+├── TIF/                          ← 阶段②③ 产物 (带 GPS 的 TIF)
+├── images/                       ← 阶段④ 产物
+├── orthophoto/
+│   ├── odm_orthophoto.tif        ← 阶段⑤ 产物 (拼接大图)
+│   └── odm_orthophoto.png        ← 预览图
+└── 项目名_TIR.tif                ← 阶段⑥ 最终输出 (单波段温度 GeoTIFF)
+```
+
+用 **GIS** 打开 `_TIR.tif` 即可查看拼接好的温度地图。
+
 
 ---
 

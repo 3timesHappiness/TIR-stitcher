@@ -61,7 +61,7 @@ conda activate tir
 pip install -r requirements.txt
 
 # 后续运行时：
-conda run -n tir python -m tir_stitcher -c config.yaml -v
+conda run -n tir python -m tir_stitcher -c config.yaml
 ```
 
 **Python venv：**
@@ -72,7 +72,7 @@ venv\Scripts\activate       # Windows CMD
 pip install -r requirements.txt
 
 # 后续运行时（先激活环境）：
-python -m tir_stitcher -c config.yaml -v
+python -m tir_stitcher -c config.yaml
 ```
 
 ### 4. 假装跑一遍（检查环境）
@@ -93,19 +93,21 @@ python -m tir_stitcher -c config.yaml --dry-run
 
 ```bash
 # conda 环境：
-conda run -n tir python -m tir_stitcher -c config.yaml -v
+conda run -n tir python -m tir_stitcher -c config.yaml
 
 # 普通环境：
-python -m tir_stitcher -c config.yaml -v
+python -m tir_stitcher -c config.yaml
 ```
 
-`-v` 显示详细进度，包括处理进度和预计剩余时间：
+终端会实时显示处理进度和预计剩余时间：
 
 ```
 [1/6] extract_raw: 项目名
-       从 T.JPG 提取 RAW 温度数据
+       Extract RAW temperature data from T.JPG via DJI Thermal SDK
   [45/100] 45% | 12s elapsed | ~15s remaining
 ```
+
+`-v` 仅在调试时使用，会把所有详细日志也输出到终端。
 
 或者用 `--project` / `-p` 直接指定单个项目（跳过自动发现）：
 
@@ -132,9 +134,7 @@ python -m tir_stitcher -c config.yaml -p "你的项目路径"
 └── 项目名_TIR.tif                ← 阶段⑥ 最终输出 (单波段温度 GeoTIFF)
 ```
 
-用 **GIS** 打开 `_TIR.tif` 即可查看拼接好的温度地图。
-
----
+用 **QGIS** 打开 `_TIR.tif` 即可查看拼接好的温度地图。
 
 ---
 
@@ -223,9 +223,9 @@ docker pull opendronemap/odm
 odm:
   docker_image: "opendronemap/odm"      # CPU 版镜像
   docker_path: null                      # Docker 可执行文件所在目录
-                                         # Windows 用户如果 Git Bash 提示 docker 找不到，设为你
-                                         #  Docker 安装路径下的 bin 目录，例如：
-                                         #  docker_path: "C:/Program Files/Docker/Docker/resources/bin"
+                                         # Windows 用户如果 Git Bash 提示 docker 找不到，
+                                         # 设为你的 Docker 安装路径下的 bin 目录，例如：
+                                         #   docker_path: "C:/Program Files/Docker/Docker/resources/bin"
   use_gpu: false                         # GPU 加速（需 NVIDIA Docker runtime）
   feature_quality: "high"                # 特征提取质量: ultra / high / medium / low
   pc_quality: "high"                     # 点云质量: ultra / high / medium / low

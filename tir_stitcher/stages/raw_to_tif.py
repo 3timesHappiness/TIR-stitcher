@@ -1,5 +1,6 @@
 """Stage 2: Convert RAW (uint16) to single-band TIFF images."""
 
+import time
 from pathlib import Path
 
 import numpy as np
@@ -58,16 +59,19 @@ class RawToTifStage(Stage):
         tif_dir = project.tif_dir
         tif_dir.mkdir(exist_ok=True)
 
+        total = len(raw_files)
         processed = 0
         failed = 0
-        for rp in raw_files:
+        self._progress_start_timer()
+
+        for idx, rp in enumerate(raw_files, 1):
             tif_path = tif_dir / f"{rp.stem}.tif"
 
             if tif_path.exists() and tif_path.stat().st_size > 0:
                 processed += 1
+                self._progress_log(idx, total)
                 continue
 
-            # Validate file size
             actual = rp.stat().st_size
             if actual != expected_bytes:
                 self.logger.error(
@@ -85,17 +89,21 @@ class RawToTifStage(Stage):
                     img = data.reshape((rows, cols, rtc.channels))
                 cv2.imwrite(str(tif_path), img)
                 processed += 1
+                self._progress_log(idx, total)
             except Exception as e:
                 self.logger.error("Failed to convert %s: %s", rp.name, e)
                 failed += 1
 
-        detail = f"Converted {processed}/{len(raw_files)} files"
+        elapsed = time.time() - self._progress_start
+        self.logger.info("Done: %d/%d in %.1fs", processed, total, elapsed)
+
+        detail = f"Converted {processed}/{total} files"
         if failed > 0:
             detail += f" ({failed} failed)"
 
         return StageResult(
             stage_name=self.name,
-            status=StageStatus.COMPLETED,
+            status=StageStatus.COMPLETED if failed == 0 else StageStatus.FAILED,
             project=project.path,
             detail=detail,
             items_processed=processed,

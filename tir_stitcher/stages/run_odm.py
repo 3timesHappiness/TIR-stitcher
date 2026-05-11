@@ -1,8 +1,10 @@
 """Stage 5: Run OpenDroneMap (Docker) to generate thermal orthophoto."""
 
 import subprocess
+from pathlib import Path
 
 from tir_stitcher.core.config import PipelineConfig
+from tir_stitcher.core.logging_setup import progress_reporter
 from tir_stitcher.core.stage import Stage
 from tir_stitcher.core.types import ProjectInfo, StageResult, StageStatus
 from tir_stitcher.core.utils import find_executable
@@ -35,13 +37,17 @@ class RunODMStage(Stage):
             )
 
         # Check Docker
-        docker = find_executable("docker")
+        odm_cfg = self.config.odm
+        docker_search_paths = []
+        if odm_cfg.docker_path:
+            docker_search_paths.append(odm_cfg.docker_path.parent)
+        docker = find_executable("docker", search_paths=docker_search_paths)
         if docker is None:
             return StageResult(
                 stage_name=self.name,
                 status=StageStatus.FAILED,
                 project=project.path,
-                detail="Docker not found on PATH.",
+                detail="Docker not found. Set odm.docker_path in config (e.g. C:/Program Files/Docker/Docker/resources/bin) or add Docker to PATH.",
             )
 
         # Check that docker daemon is running
@@ -87,9 +93,10 @@ class RunODMStage(Stage):
         self.logger.info("Images: %d files in %s", img_count, images_dir)
         self.logger.info("Docker image: %s", self.config.odm.docker_image)
 
-        cmd = self._build_command(project.name)
+        cmd = self._build_command(project, docker)
 
         self.logger.info("ODM command: %s", " ".join(cmd))
+        progress_reporter.info("  Running ODM on %d images...", img_count)
 
         try:
             process = subprocess.Popen(
@@ -150,20 +157,32 @@ class RunODMStage(Stage):
             items_processed=img_count,
         )
 
-    def _build_command(self, project_name: str) -> list[str]:
+    def _build_command(self, project: ProjectInfo, docker: Path) -> list[str]:
         odm = self.config.odm
         workspace = self.config.workspace_dir
 
-        cmd = ["docker", "run", "--rm"]
+        # Determine Docker volume mount: use workspace if project is under it,
+        # otherwise mount the project's parent directory.
+        project_path = project.path.resolve()
+        workspace_resolved = workspace.resolve()
+        try:
+            rel = project_path.relative_to(workspace_resolved)
+            mount_src = workspace_resolved
+            proj_arg = str(rel)
+        except ValueError:
+            mount_src = project_path.parent
+            proj_arg = project_path.name
+
+        cmd = [str(docker), "run", "--rm"]
 
         if odm.use_gpu:
             cmd.append("--gpus")
             cmd.append("all")
 
         cmd += [
-            "-v", f"{workspace}:/datasets",
+            "-v", f"{mount_src}:/datasets",
             odm.docker_image,
-            "--project-path", "/datasets", project_name,
+            "--project-path", "/datasets", proj_arg,
         ]
 
         cmd += self.TIR_FIXED_ARGS

@@ -2,6 +2,7 @@
 
 import os
 import shutil
+import time
 from pathlib import Path
 
 from tir_stitcher.core.config import PipelineConfig
@@ -32,7 +33,8 @@ class PrepareImagesStage(Stage):
                 detail="No TIF files found.",
             )
 
-        self.logger.info("Found %d TIF files", len(tif_files))
+        total = len(tif_files)
+        self.logger.info("Found %d TIF files", total)
 
         images_dir = project.images_dir
         images_dir.mkdir(exist_ok=True)
@@ -42,13 +44,14 @@ class PrepareImagesStage(Stage):
 
         processed = 0
         failed = 0
+        self._progress_start_timer()
 
-        for src in tif_files:
+        for idx, src in enumerate(tif_files, 1):
             dst = images_dir / src.name
             if dst.exists():
-                # Skip if same size
                 if dst.stat().st_size == src.stat().st_size:
                     processed += 1
+                    self._progress_log(idx, total)
                     continue
                 else:
                     dst.unlink()
@@ -65,17 +68,21 @@ class PrepareImagesStage(Stage):
                         dst.unlink()
                     os.link(src, dst)
                 processed += 1
+                self._progress_log(idx, total)
             except OSError as e:
                 self.logger.error("Failed to %s %s: %s", mode, src.name, e)
                 failed += 1
 
-        detail = f"{mode}d {processed}/{len(tif_files)} files"
+        elapsed = time.time() - self._progress_start
+        self.logger.info("Done: %d/%d in %.1fs", processed, total, elapsed)
+
+        detail = f"{mode}d {processed}/{total} files"
         if failed > 0:
             detail += f" ({failed} failed)"
 
         return StageResult(
             stage_name=self.name,
-            status=StageStatus.COMPLETED if failed == 0 else StageStatus.COMPLETED,
+            status=StageStatus.COMPLETED if failed == 0 else StageStatus.FAILED,
             project=project.path,
             detail=detail,
             items_processed=processed,

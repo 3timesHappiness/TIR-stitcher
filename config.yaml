@@ -9,64 +9,68 @@
 workspace_dir: "D:/UAV"
 
 # --- Project Discovery ---
+# 项目发现: 自动查找 workspace_dir 下包含 T.JPG 的项目文件夹
 discovery:
-  # A folder is accepted if its basename contains ALL of these strings
-  # (case-insensitive by default).
-  folder_filters:
+  folder_filters:                      # 文件夹名必须包含以下所有关键词（不区分大小写）
     - "DJI"
     - "TIR"
   case_sensitive: false
-  max_depth: 2
-  require_images: true              # Only match folders with T.JPG files
+  max_depth: 1                         # 搜索深度 (1 = 仅一层子目录)
+  require_images: true                 # 仅匹配包含 T.JPG 文件的文件夹
 
 # --- DJI Thermal SDK ---
 tsdk:
-  exe_path: null                    # Auto-detect from workspace if null
-  distance: 5.0                     # Distance to target (meters)
-  humidity: 50.0                    # Relative humidity (%)
-  emissivity: 0.95                  # Surface emissivity (0.0-1.0)
-  ambient: 25.0                     # Ambient temperature (Celsius)
-  reflection: 25.0                  # Reflected temperature (Celsius)
-  measurefmt: 0                     # 0 = uint16 output
+  exe_path: null                       # SDK 路径, null 则自动在 workspace 中搜索 (Windows 优先)
+  distance: 5.0                        # 飞行高度 (米)
+  humidity: 50.0                       # 相对湿度 (%)
+  emissivity: 0.95                     # 地表发射率 (0.0-1.0)
+  ambient: 25.0                        # 环境温度 (摄氏度)
+  reflection: 25.0                     # 反射温度 (摄氏度)
+  measurefmt: 0                        # 0 = uint16 输出
 
 # --- RAW to TIF Conversion ---
 raw_to_tif:
-  rows: null                        # Auto-detect from file size if null
-  cols: null                        # Auto-detect from file size if null
-  channels: 1                       # Single-band thermal
+  rows: null                           # 图像行数, null 则从文件大小自动推断 (DJI M3T: 512x640)
+  cols: null                           # 图像列数
+  channels: 1                          # 单波段热红外
 
 # --- EXIF Copy ---
 copy_exif:
-  exiftool_path: null               # Auto-detect from workspace/PATH if null
-  batch_size: 5000                  # Pairs per exiftool invocation
-  verify_gps: true                  # Sample-check GPS was written
+  exiftool_path: null                  # exiftool 路径, null 则自动从 workspace/PATH 搜索
+  verify_gps: true                     # 抽检 GPS 是否正确写入
 
 # --- Image Preparation ---
 prepare_images:
-  mode: "copy"                      # copy | symlink | hardlink
+  mode: "copy"                         # copy | symlink | hardlink (Windows 请用 copy)
 
 # --- ODM Processing ---
 odm:
-  docker_image: "opendronemap/odm"  # CPU image (use opendronemap/odm:gpu for GPU)
-  use_gpu: false                    # Set to true for --gpus all
-  feature_quality: "ultra"          # ultra | high | medium | low
-  pc_quality: "ultra"               # ultra | high | medium | low
-  orthophoto_resolution: 5.0        # cm/pixel
-  dem_resolution: 5.0               # cm/pixel
-  min_num_features: 10000           # Minimum features for SfM
-  max_concurrency: 32               # Max threads in ODM
-  extra_args: []                    # Additional ODM arguments
+  docker_image: "opendronemap/odm"     # CPU 版 (GPU 版用 opendronemap/odm:gpu)
+  docker_path: null                    # Docker 可执行文件所在目录, null 则从 PATH 查找
+                                       # Windows 示例: "C:/Program Files/Docker/Docker/resources/bin"
+  use_gpu: false                       # 设为 true 启用 --gpus all
+  feature_quality: "high"              # ultra | high | medium | low
+  pc_quality: "high"                   # ultra | high | medium | low
+  orthophoto_resolution: 5.0           # 正射影像分辨率 (cm/pixel)
+  dem_resolution: 5.0                  # DEM 分辨率 (cm/pixel)
+  min_num_features: 3000               # SfM 最小特征点数 (热红外对比度低, 建议 2000-4000)
+  max_concurrency: 32                  # ODM 最大线程数
+  extra_args:                          # 额外 ODM 参数
+    - "--use-exif"                     # 使用 EXIF 中的 GPS 坐标
+    - "--gps-accuracy"                 # 手动指定 GPS 精度
+    - "10"                             # GPS 精度值 (米)
 
 # --- Postprocessing ---
 postprocess:
-  output_dir: null                  # null = write to each project folder
-  output_crs: "EPSG:4326"           # Output coordinate reference system
-  compression: "LZW"                # GeoTIFF compression
+  output_dir: null                     # null = 输出到每个项目文件夹
+  output_crs: null                     # null = 保留 ODM 原投影坐标系
+                                       # 如需重投影可设如 "EPSG:4326"
+  compression: "LZW"                   # GeoTIFF 压缩方式
 
 # --- Pipeline Behavior ---
 pipeline:
-  stop_on_stage_failure: false      # true = abort project on first stage failure
-  resume: true                      # true = skip completed stages
-  dry_run: false                    # true = log only, no execution
-  log_dir: null                     # null = <workspace_dir>/logs
-  verbose: false                    # true = debug output
+  stop_on_stage_failure: false         # true = 任一阶段失败即中止该项目的后续阶段
+  resume: true                         # true = 跳过已完成的阶段
+  dry_run: false                       # true = 仅打印预览, 不做实际操作
+  log_dir: null                        # null = <workspace_dir>/logs
+  verbose: false                       # true = 调试模式 (详细输出)

@@ -7,7 +7,7 @@ from pathlib import Path
 
 from tir_stitcher import __version__
 from tir_stitcher.core.config import ConfigError, PipelineConfig
-from tir_stitcher.core.logging_setup import get_logger, setup_logging
+from tir_stitcher.core.logging_setup import get_logger, progress_reporter, setup_logging
 from tir_stitcher.pipeline import PipelineOrchestrator
 
 
@@ -21,6 +21,12 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         default=Path("config.yaml"),
         help="Path to YAML configuration file (default: config.yaml)",
+    )
+    parser.add_argument(
+        "--project", "-p",
+        type=Path,
+        default=None,
+        help="Direct project path (skips discovery when set)",
     )
     parser.add_argument(
         "--workspace", "-w",
@@ -77,15 +83,19 @@ def main(args: argparse.Namespace | None = None) -> int:
     setup_logging(log_dir, verbose=config.verbose)
     logger = get_logger("cli")
 
+    progress_reporter.info("tir-stitcher v%s", __version__)
+    progress_reporter.info("Config: %s", config_path)
+    progress_reporter.info("Workspace: %s", config.workspace_dir)
     logger.info("tir-stitcher v%s", __version__)
     logger.info("Config: %s", config_path)
     logger.info("Workspace: %s", config.workspace_dir)
     if config.dry_run:
+        progress_reporter.info("DRY-RUN MODE — no changes will be made")
         logger.info("DRY-RUN MODE — no changes will be made")
 
     # Run pipeline
     orchestrator = PipelineOrchestrator(config)
-    results = orchestrator.run()
+    results = orchestrator.run(args.project)
 
     if not results:
         logger.info("No projects processed.")

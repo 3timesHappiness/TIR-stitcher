@@ -51,25 +51,38 @@ def find_executable(
         if found:
             return Path(found)
 
-    # 3. Recursive search
+    # 3. Recursive search — prefer platform-specific subdirs
     if search_recursive and search_paths:
         for sp in search_paths:
             if not sp.exists():
                 continue
-            try:
-                for p in sp.rglob(name):
-                    if p.is_file():
-                        return p
-            except (PermissionError, OSError):
-                continue
-            for c in candidates:
-                try:
-                    for p in sp.rglob(c):
-                        if p.is_file():
-                            return p
-                except (PermissionError, OSError):
-                    continue
+            # On Windows, search 'windows' subdirs first to avoid picking up Linux binaries
+            _recursive_find(sp, candidates, prefer=os.name)
+        return None
 
+    return None
+
+
+def _recursive_find(
+    root: Path, candidates: list[str], prefer: str
+) -> Path | None:
+    """Recursively search for a candidate, preferring dirs whose name contains `prefer`."""
+    # First pass: only paths containing the preferred OS name (e.g. "windows")
+    preferred_matches = []
+    other_matches = []
+    for c in candidates:
+        try:
+            for p in root.rglob(c):
+                if not p.is_file():
+                    continue
+                if prefer in str(p).lower():
+                    preferred_matches.append(p)
+                else:
+                    other_matches.append(p)
+        except (PermissionError, OSError):
+            continue
+    for p in preferred_matches + other_matches:
+        return p
     return None
 
 

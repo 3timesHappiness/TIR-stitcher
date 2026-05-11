@@ -47,6 +47,7 @@ class PrepareImagesConfig:
 @dataclass
 class ODMConfig:
     docker_image: str = "opendronemap/odm"
+    docker_path: Path | None = None
     use_gpu: bool = False
     feature_quality: str = "ultra"
     pc_quality: str = "ultra"
@@ -60,7 +61,7 @@ class ODMConfig:
 @dataclass
 class PostprocessConfig:
     output_dir: Path | None = None
-    output_crs: str = "EPSG:4326"
+    output_crs: str | None = None
     compression: str = "LZW"
 
 
@@ -162,6 +163,8 @@ class PipelineConfig:
             for key in ("orthophoto_resolution", "dem_resolution", "min_num_features", "max_concurrency"):
                 if key in o:
                     setattr(odm, key, o[key])
+            if "docker_path" in o and o["docker_path"]:
+                odm.docker_path = Path(os.path.expandvars(o["docker_path"]))
             if "extra_args" in o:
                 odm.extra_args = o["extra_args"]
 

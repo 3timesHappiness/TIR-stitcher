@@ -1,8 +1,11 @@
-"""Stage 3: Copy GPS EXIF from T.JPG to corresponding TIF files using exiftool."""
+"""Stage 3: Copy GPS EXIF from T.JPG to corresponding TIF files using exiftool.
 
-import os
+Each JPG-TIF pair is processed individually to avoid exiftool's multi-source
+GPS overwrite bug (where -TagsFromFile applies all sources to all targets).
+"""
+
 import subprocess
-import tempfile
+import time
 from pathlib import Path
 
 from tir_stitcher.core.config import PipelineConfig
@@ -16,7 +19,6 @@ class CopyExifStage(Stage):
     description = "Copy GPS EXIF metadata from T.JPG to TIF using exiftool"
 
     def _run_one(self, project: ProjectInfo) -> StageResult:
-        # Find exiftool
         ec = self.config.copy_exif
         search_paths = [self.config.workspace_dir]
         if ec.exiftool_path:
@@ -33,7 +35,6 @@ class CopyExifStage(Stage):
 
         self.logger.info("Using exiftool: %s", exiftool)
 
-        # Find T.JPG files and matching TIF files
         from tir_stitcher.core.discovery import discover_t_jpg_files
         tjpg_files = discover_t_jpg_files(project.path)
 
@@ -54,7 +55,6 @@ class CopyExifStage(Stage):
                 detail=f"TIF directory not found: {tif_dir}",
             )
 
-        # Build pairs
         pairs = []
         for jpg in tjpg_files:
             tif_path = tif_dir / f"{jpg.stem}.tif"
@@ -69,68 +69,50 @@ class CopyExifStage(Stage):
                 detail="No matching T.JPG <-> TIF pairs found.",
             )
 
-        self.logger.info("Found %d JPG-TIF pairs", len(pairs))
         total = len(pairs)
         failed = 0
+        self._progress_start_timer()
 
-        batch_size = ec.batch_size
+        self.logger.info("Found %d JPG-TIF pairs", total)
 
-        for i in range(0, total, batch_size):
-            chunk = pairs[i:i + batch_size]
-
-            # Create argfile for batch processing
-            with tempfile.NamedTemporaryFile("w", delete=False, encoding="utf-8") as af:
-                for jpg, tif in chunk:
-                    af.write("-overwrite_original\n")
-                    af.write("-TagsFromFile\n")
-                    af.write(str(jpg) + "\n")
-                    af.write(str(tif) + "\n")
-                argfile = af.name
-
+        for idx, (jpg, tif) in enumerate(pairs, 1):
             try:
-                cmd = [str(exiftool), "-@", argfile]
-                result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
-
-                if result.returncode != 0:
-                    self.logger.error("exiftool batch failed at offset %d: %s",
-                                      i, result.stderr.strip()[:500])
-                    # Count individual failures
-                    for jpg, tif in chunk:
-                        if not self._check_gps(tif, exiftool):
-                            failed += 1
+                result = subprocess.run(
+                    [str(exiftool), "-overwrite_original",
+                     "-TagsFromFile", str(jpg), "-gps:all", str(tif)],
+                    capture_output=True, text=True, timeout=60,
+                )
+                if result.returncode == 0:
+                    self._progress_log(idx, total)
                 else:
-                    # Verify GPS was written
-                    if ec.verify_gps and i == 0:
-                        sample = chunk[0][1]
-                        if self._check_gps(sample, exiftool):
-                            self.logger.info("GPS verification passed on sample: %s", sample.name)
-                        else:
-                            self.logger.warning("GPS verification failed on sample: %s", sample.name)
-            except subprocess.TimeoutExpired:
-                self.logger.error("exiftool batch timeout at offset %d", i)
-                failed += len(chunk)
-            finally:
-                try:
-                    os.remove(argfile)
-                except OSError:
-                    pass
+                    self.logger.error("exiftool failed for %s: %s",
+                                      tif.name, result.stderr.strip()[:200])
+                    failed += 1
 
-        detail = f"EXIF copied for {total - failed}/{total} pairs"
-        if failed > 0:
-            detail += f" ({failed} failed)"
+                if ec.verify_gps and idx == 1 and result.returncode == 0:
+                    if self._check_gps(tif, exiftool):
+                        self.logger.info("GPS verification passed: %s", tif.name)
+                    else:
+                        self.logger.warning("GPS verification failed: %s", tif.name)
+
+            except subprocess.TimeoutExpired:
+                self.logger.error("exiftool timeout for %s", tif.name)
+                failed += 1
+
+        elapsed = time.time() - self._progress_start
+        self.logger.info("Done: %d/%d in %.1fs", total - failed, total, elapsed)
 
         return StageResult(
             stage_name=self.name,
-            status=StageStatus.COMPLETED,
+            status=StageStatus.COMPLETED if failed == 0 else StageStatus.FAILED,
             project=project.path,
-            detail=detail,
+            detail=f"EXIF copied for {total - failed}/{total} pairs",
             items_processed=total - failed,
             items_failed=failed,
         )
 
     @staticmethod
     def _check_gps(tif_path: Path, exiftool: Path) -> bool:
-        """Verify GPS tags exist on a TIF file."""
         try:
             result = subprocess.run(
                 [str(exiftool), "-GPSLatitude", "-GPSLongitude", str(tif_path)],

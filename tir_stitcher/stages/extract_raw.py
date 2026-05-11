@@ -1,6 +1,7 @@
 """Stage 1: Convert T.JPG to RAW using DJI Thermal SDK (dji_irp.exe)."""
 
 import subprocess
+import time
 from pathlib import Path
 
 from tir_stitcher.core.config import PipelineConfig
@@ -57,14 +58,17 @@ class ExtractRawStage(Stage):
             "reflection": tsdk_config.reflection,
         }
 
+        total = len(tjpg_files)
         processed = 0
         failed = 0
-        for tjpg in tjpg_files:
+        self._progress_start_timer()
+
+        for idx, tjpg in enumerate(tjpg_files, 1):
             out_file = raw_dir / f"{tjpg.stem}.raw"
 
-            # Skip if already exists
             if out_file.exists() and out_file.stat().st_size > 0:
                 processed += 1
+                self._progress_log(idx, total)
                 continue
 
             cmd = [
@@ -83,6 +87,7 @@ class ExtractRawStage(Stage):
             try:
                 subprocess.run(cmd, capture_output=True, text=True, check=True, timeout=120)
                 processed += 1
+                self._progress_log(idx, total)
             except subprocess.CalledProcessError as e:
                 self.logger.error("SDK failed for %s: %s", tjpg.name, e.stderr.strip() if e.stderr else str(e))
                 failed += 1
@@ -90,13 +95,16 @@ class ExtractRawStage(Stage):
                 self.logger.error("SDK timeout for %s", tjpg.name)
                 failed += 1
 
-        detail = f"Processed {processed}/{len(tjpg_files)} files"
+        elapsed = time.time() - self._progress_start
+        self.logger.info("Done: %d/%d in %.1fs", processed, total, elapsed)
+
+        detail = f"Processed {processed}/{total} files"
         if failed > 0:
             detail += f" ({failed} failed)"
 
         return StageResult(
             stage_name=self.name,
-            status=StageStatus.COMPLETED if failed == 0 else StageStatus.COMPLETED,
+            status=StageStatus.COMPLETED if failed == 0 else StageStatus.FAILED,
             project=project.path,
             detail=detail,
             items_processed=processed,
